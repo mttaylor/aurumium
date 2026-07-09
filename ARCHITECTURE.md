@@ -1,8 +1,8 @@
 # AURUMIUM — Architecture & System Design
 
-**Version:** 0.2.0  
+**Version:** 0.2.1  
 **Last Updated:** 2026-07-08  
-**Status:** MVP + Supabase Integration — Ready for Production Deployment
+**Status:** MVP + Supabase Integration + Scaling Analysis — Ready for Production Deployment
 
 ---
 
@@ -270,17 +270,141 @@ aurumium-project/
 
 ---
 
+## � Scaling Cost Analysis
+
+### **Cost Breakdown by Client Count**
+
+| Clients | Monthly DB Cost | Vercel | Claude API* | Total | Infrastructure Notes |
+|---------|-----------------|--------|------------|-------|----------------------|
+| **5-10** | $25/mo (Free tier) | $20-50 | $5-50 | $50-125 | Start with Supabase Free, upgrade as needed |
+| **10-50** | $80-150 (Pro) | $20-50 | $50-200 | $150-400 | Supabase Pro, watch query volume |
+| **50-100** | $200-300 (Pro+) | $20-50 | $200-500 | $420-850 | Real usage begins, monitor connection pool |
+| **100-500** | $400-500 (Team) | $50-100 | $500-2000 | $950-2600 | HIPAA compliance (Team tier required for mortgage) |
+| **500-1000+** | $599 (Team) + add-ons | $100-200 | $2000-5000 | $2700-5800 | Supabase Team tier + HIPAA ($100-200/mo), enterprise support |
+
+*Claude API costs: ~$0.003/input token, $0.015/output token. Typical Auri query = 5-20 tokens input, 200-500 output ≈ $0.01-0.02/query.
+
+### **Supabase Tier Decision Matrix**
+
+| Tier | Cost | Best For | Compliance | Backups | Support |
+|------|------|----------|-----------|---------|---------|
+| **Free** | $0 | Dev/demo | None | 7-day | Community |
+| **Pro** | $25/mo* | 10-100 clients | SOC 2 add-on | 7-day | Email |
+| **Team** | $599/mo | 100-5000 clients | HIPAA, SOC 2 | 14-day, weekly | 24x7 priority |
+| **Enterprise** | Custom | 5000+ clients | Custom security | Unlimited | White-glove |
+
+*\*Pro tier includes $10/mo compute + $5/mo storage, plus pay-per-use after thresholds.*
+
+### **When to Upgrade**
+
+#### ✅ **Free → Pro** (trigger: ~10-15 active clients OR 1000+ queries/day)
+```
+Signs:
+- Dashboard takes >2s to load
+- Auri chat occasionally times out
+- "Database connection limit" errors
+Upgrade Cost: +$25/mo
+Expected Impact: +50x query capacity, 25GB database
+```
+
+#### ✅ **Pro → Team** (trigger: ~100+ clients OR need HIPAA)
+```
+Signs:
+- Real mortgage clients want compliance (HIPAA, SOC 2, SLA)
+- Pro tier pricing becoming expensive (overage charges)
+- Need SSO/team management features
+Upgrade Cost: +$574/mo (flat $599, so ~$30 more)
+Expected Impact: HIPAA certified, 1TB database, 24x7 support, priority SLA
+```
+
+#### ✅ **Team → Enterprise** (trigger: 5000+ clients OR need custom infra)
+```
+Signs:
+- Monthly Claude bill exceeds database bill
+- Need dedicated account management
+- Require on-premise or HIPAA-Plus compliance
+- Single-tenant deployments per client
+Upgrade Cost: Custom (typically $2000-10000+/mo)
+Expected Impact: Custom SLA, dedicated infrastructure, white-glove support
+```
+
+### **Cost Breakdown at 1000 Clients (Mature State)**
+
+```
+Monthly Infrastructure Costs (Production):
+
+┌─ Database (Supabase Team) ─────────────┐
+│  Base: $599/mo                         │
+│  HIPAA add-on: $150/mo                 │
+│  Storage overage (100GB+): ~$50/mo     │
+│  Subtotal: $799/mo                     │
+└────────────────────────────────────────┘
+
+┌─ Hosting (Vercel) ─────────────────────┐
+│  Pro plan: $50/mo                      │
+│  Edge Functions overage: ~$50/mo       │
+│  Subtotal: $100/mo                     │
+└────────────────────────────────────────┘
+
+┌─ AI/LLM (Claude @ Anthropic) ──────────┐
+│  Estimated 1000-5000 queries/day       │
+│  @ $0.01-0.02/query average            │
+│  = $10-100/day × 30 days               │
+│  Subtotal: $300-3000/mo                │
+│  (Assume mid-range: $1000/mo)          │
+└────────────────────────────────────────┘
+
+┌─ Monitoring & Dev Tools ───────────────┐
+│  Sentry (error tracking): $50/mo       │
+│  LogRocket (session replay): $50/mo    │
+│  Anthropic usage monitoring: $0        │
+│  Subtotal: $100/mo                     │
+└────────────────────────────────────────┘
+
+TOTAL MONTHLY: ~$2000/mo (database + Claude are variable)
+ANNUAL: ~$24,000/year
+
+Per-Client Cost: $2000 ÷ 1000 = $2/client/month (before revenue!)
+```
+
+### **Alternative Database Providers Comparison**
+
+| Provider | Cost @ 1000 clients | HIPAA | RLS | Auto-scaling | Multi-tenant Notes |
+|----------|-------------------|-------|-----|--------------|-------------------|
+| **Supabase** | $599-800/mo | ✅ Yes (add-on) | ✅ Native | ✅ Yes | ✅ Built-in, simple |
+| **Neon** | $200-400/mo | ✅ Yes | ⚠️ Manual | ✅ Yes | ⚠️ App-layer RLS needed |
+| **Vercel Postgres** | $150-300/mo | ❌ No | ❌ No | ❌ No (fixed) | ❌ Not designed for multi-tenant |
+| **AWS RDS** | $200-600/mo* | ✅ Yes | ⚠️ Manual | ⚠️ Manual | ⚠️ High ops overhead |
+| **PlanetScale** | $100-300/mo | ❌ No | ❌ No | ✅ Yes | ❌ MySQL, no RLS |
+
+*AWS RDS includes compute/storage but no managed backups, auth, or RLS enforcement.*
+
+**Recommendation:** Supabase remains best choice for B2B mortgage platform:
+1. **RLS at database level** = security even if app has bugs
+2. **HIPAA certified** = required for lender contracts
+3. **Managed backups** = zero ops overhead
+4. **Team tier @ $599** = fixed cost regardless of scale (predictable)
+
+---
+
 ## 🔐 Security & Compliance Notes
 
 - **PII Policy:** Aurumium stores NO borrower PII by design (only opaque loan refs)
 - **Data Isolation:** Tenant-based (multi-tenant via `tenant_id`), not implemented yet
 - **Rate Limiting:** Needed for `/api/assistant/chat` (Claude API costs)
 - **Secrets Management:** Use `.env.local` locally, AWS Secrets/Vault in prod
-- **HIPAA/RESPA:** TBD based on lender requirements
+- **HIPAA/RESPA:** Supabase Team tier required for mortgage industry (see Scaling Cost Analysis)
 
 ---
 
 ## 📝 Changelog
+
+### v0.2.1 (2026-07-08) — Scaling & Cost Analysis
+- ✅ Added comprehensive cost breakdown by client count
+- ✅ Supabase tier decision matrix (Free → Pro → Team → Enterprise)
+- ✅ Database provider comparison (Supabase vs Neon vs AWS)
+- ✅ Per-client cost analysis at 1000-client scale
+- ✅ Infrastructure cost projections and triggers for upgrades
 
 ### v0.2.0 (2026-07-08) — Supabase Integration
 - ✅ Dashboard UI with sample data
