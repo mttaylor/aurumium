@@ -1,0 +1,31 @@
+{
+  "name": "aurumium",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:push": "drizzle-kit push",
+    "db:views": "psql $DATABASE_URL -f drizzle/0000_views.sql",
+    "db:refresh": "psql $DATABASE_URL -c 'refresh materialized view concurrently partner_funnel_rollup;'"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.57.0",
+    "drizzle-orm": "^0.44.0",
+    "next": "^15.3.0",
+    "postgres": "^3.4.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^2.15.0",
+    "lucide-react": "^0.510.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.0",
+    "typescript": "^5.8.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "tailwindcss": "^4.1.0",
+    "@tailwindcss/postcss": "^4.1.0"
+  }
+}
